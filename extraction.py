@@ -37,7 +37,8 @@ chr_list = hg19_df['Chr'].tolist()
 
 # ncan
 filepath = '../data/ncan/data_ca.csv'
-df = pd.read_csv(filepath, header=0)
+ncan_df = pd.read_csv(filepath, header=0)
+df = ncan_df.copy()
 df = df[['Sample', 'Chr1', 'Break1', 'Chr2', 'Break2']]
 p(df.dtypes, 'df.dtypes')
 # 行を削除
@@ -46,7 +47,7 @@ df = df[df['Chr1'].isin(chr_list)]; p(len(df), 'len(df) ... Chr1のカラム要�
 df = df[df['Chr2'].isin(chr_list)]; p(len(df), 'len(df) ... Chr2のカラム要素に対象でない要素が含まれていたらその行を削除する')
 df['Node1'] = [get_node(bp) for bp in df['Break1']]
 df['Node2'] = [get_node(bp) for bp in df['Break2']]
-df = df.reset_index(drop=True)
+#df = df.reset_index(drop=True)
 # 同じノードを抽出
 same_node_df = df[(df['Node1'] == df['Node2']) & (df['Chr1'] == df['Chr2'])].copy()
 p(len(same_node_df), 'len(same_node_df)')
@@ -80,7 +81,7 @@ chr2 = df['Chr2'].tolist()
 node1 = df['Node1'].tolist()
 node2 = df['Node2'].tolist()
 b1_start = [True if c1 < c2 and (c1 == c2 and b1 < b2) else False for b1, b2, c1, c2 in zip(break1, break2, chr1, chr2)]
-old_df = df.copy()
+org_df = df.copy()
 df['Break1'] = [b1 if b1_start else b2 for b1, b2 in zip(break1, break2)]
 df['Break2'] = [b2 if b1_start else b1 for b1, b2 in zip(break1, break2)]
 df['Chr1'] = [c1 if b1_start else c2 for c1, c2 in zip(chr1, chr2)]
@@ -126,11 +127,11 @@ def change(ch, bp):
 
 # paplotと同じ書式で出力
 def change_data_format(idx):
-    sample = old_df.at[idx, 'Sample']
-    chr1 = old_df.at[idx, 'Chr1']
-    bp1 = old_df.at[idx, 'Break1']
-    chr2 = old_df.at[idx, 'Chr2']
-    bp2 = old_df.at[idx, 'Break2']
+    sample = org_df.at[idx, 'Sample']
+    chr1 = org_df.at[idx, 'Chr1']
+    bp1 = org_df.at[idx, 'Break1']
+    chr2 = org_df.at[idx, 'Chr2']
+    bp2 = org_df.at[idx, 'Break2']
     if chr1 == 'X':
         chr1 = '23'
     elif chr1 == 'Y':
@@ -169,3 +170,28 @@ for i in range(2):
         for idx, _ in res.iterrows():
             f.write(change_data_format(idx))
     print('#==============================')
+
+# =============================================================================
+# =============================================================================
+# =============================================================================
+
+print('')
+print('# 同じbpをもつデータを確認する')
+break1 = df['Break1'].tolist()
+break2 = df['Break2'].tolist()
+add_idx = 2  # ヘッダ行と1から行数を開始するために+2
+with open('result/same_bp', 'w') as f:
+    for idx1 in range(len(break1) - 1):
+        bp_s = break1[idx1]
+        bp_e = break2[idx1]
+        for idx2 in range(idx1 + 1, len(break1)):
+            bp2_s = break1[idx2]
+            bp2_e = break2[idx2]
+            if((bp_s == bp2_s and bp_e == bp2_e) or (bp_s == bp2_e and bp_e == bp2_s)):
+                i1 = df.index[idx1]
+                i2 = df.index[idx2]
+                data = ' '.join([str(i1 + add_idx), str(i2 + add_idx),
+                                 ','.join(map(str, ncan_df.iloc[i1].values)),
+                                 ','.join(map(str, ncan_df.iloc[i2].values))])
+                print(data)
+                f.write(data + '\n')
